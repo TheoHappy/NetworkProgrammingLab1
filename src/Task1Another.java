@@ -18,16 +18,44 @@ public class Task1Another {
 
     public static void main(String[] args) throws Exception {
 
-        String serverResponse = getResponseFromServer(HOST_NAME, PORT, "/");
-        List<String> listOfImg = getPics(serverResponse);
-        listOfImg.remove(listOfImg.size() - 1);
-        listOfImg.remove(listOfImg.size() - 1);
-        System.out.println(listOfImg);
+//        String serverResponse = getResponseFromServer(HOST_NAME, PORT, "/");
+//        List<String> listOfImg = getPics(serverResponse);
+//        listOfImg.remove(listOfImg.size() - 1);
+//        listOfImg.remove(listOfImg.size() - 1);
+//        System.out.println(listOfImg);
 
-        String responseFromSecurisedServer = getResponseFromSecurisedServer("www.facebook.com", 443, "/");
 //        System.out.println(responseFromSecurisedServer);
 
-//        System.out.println(getResponseFromSecurisedServer("utm.md", 443, "/"));
+        String serverResponseSecurised = getResponseFromSecurisedServer("utm.md", 443, "/");
+        System.out.println(serverResponseSecurised);
+        List<String> listOfImg = getPics(serverResponseSecurised);
+        System.out.println(listOfImg);
+
+        Semaphore semaphore = new Semaphore(2);
+        ExecutorService exec = Executors.newFixedThreadPool(4);
+        boolean status = true;
+        while (status) {
+            for (String element : listOfImg) {
+                semaphore.acquire();
+                exec.execute(() -> {
+                    try {
+                        getImgS(getRealNameOfPictureUTM(element));
+                        semaphore.release();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    System.out.println(Thread.currentThread().getName());
+                });
+                if (element.equals(listOfImg.get(listOfImg.size()-1)))
+                {
+                    status = false;
+                    break;
+                }
+            }
+        }
+        exec.shutdown();
+        exec.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
+
 //        Semaphore semaphore = new Semaphore(2);
 //        ExecutorService exec = Executors.newFixedThreadPool(4);
 //        boolean status = true;
@@ -107,29 +135,41 @@ public class Task1Another {
     }
 
     public static String getResponseFromSecurisedServer(String hostName, int port, String getArgument) throws IOException, KeyStoreException, CertificateException, NoSuchAlgorithmException, UnrecoverableKeyException, KeyManagementException {
-        String serverResponse = null;
-        int c;
+        String serverResponse = "";
+        try {
+            SSLSocketFactory factory =
+                    (SSLSocketFactory)SSLSocketFactory.getDefault();
+            SSLSocket socket =
+                    (SSLSocket)factory.createSocket(hostName, port);
+            socket.startHandshake();
 
-        SSLSocketFactory sslsocketfactory = (SSLSocketFactory) SSLSocketFactory.getDefault();
-        SSLSocket sslsocket = (SSLSocket) sslsocketfactory
-                .createSocket(hostName, port);
+            PrintWriter out = new PrintWriter(
+                    new BufferedWriter(
+                            new OutputStreamWriter(
+                                    socket.getOutputStream())));
 
+            out.println("GET "+ getArgument + " HTTP/1.1\r\nHost: "+hostName+ "\r\n\r\n");
+            out.flush();
 
-        InputStream response = sslsocket.getInputStream();
-        OutputStream request = sslsocket.getOutputStream();
+            if (out.checkError())
+                System.out.println(
+                        "SSLSocketClient:  java.io.PrintWriter error");
 
-        byte[] data = ("GET / HTTP/1.1\r\nHost: www.facebook.com\r\n\r\n").getBytes();
-        request.write(data);
-        request.flush();
+            BufferedReader in = new BufferedReader(
+                    new InputStreamReader(
+                            socket.getInputStream()));
 
-        while (response.available() > 0) {
-            System.out.println(response.read());
-            serverResponse += (char)response.read();
-            System.out.println("asd");
+            String inputLine;
+            while ((inputLine = in.readLine()) != null)
+                serverResponse += inputLine + "\n";
+
+            in.close();
+            out.close();
+            socket.close();
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-
-
-        sslsocket.close();
         System.out.println("Secured connection performed successfully");
         return serverResponse;
     }
@@ -141,6 +181,16 @@ public class Task1Another {
 
         if (text.contains("http://mib.utm.md")) {
             result = text.replace("http://mib.utm.md", "");
+            result = result.replace("'", "");
+        } else result = text;
+        return result;
+    }
+
+    public static String getRealNameOfPictureUTM(String text) {
+        String result = null;
+
+        if (text.contains("https://utm.md")) {
+            result = text.replace("https://utm.md", "");
             result = result.replace("'", "");
         } else result = text;
         return result;
@@ -182,6 +232,63 @@ public class Task1Another {
         System.out.println("image transfer done");
 
         socket.close();
+    }
+
+    private static void getImgS(String imgName) throws Exception {
+        try {
+            SSLSocketFactory factory =
+                    (SSLSocketFactory)SSLSocketFactory.getDefault();
+            SSLSocket socket =
+                    (SSLSocket)factory.createSocket("utm.md", 443);
+            socket.startHandshake();
+
+            PrintWriter out = new PrintWriter(
+                    new BufferedWriter(
+                            new OutputStreamWriter(
+                                    socket.getOutputStream())));
+            out.println("GET "+ imgName + " HTTP/1.1\r\nHost: utm.md \r\n\r\n");
+            out.flush();
+
+            if (out.checkError())
+                System.out.println(
+                        "SSLSocketClient:  java.io.PrintWriter error");
+//            BufferedReader in = new BufferedReader(
+//                    new InputStreamReader(
+//                            socket.getInputStream()));
+            String[] tokens = imgName.split("/");
+            DataInputStream in = new DataInputStream(socket.getInputStream());
+            OutputStream dos = new FileOutputStream("images/" + tokens[tokens.length - 1]);
+
+            int count, offset;
+            byte[] buffer = new byte[2048];
+            boolean eohFound = false;
+            while ((count = in.read(buffer)) != -1) {
+                offset = 0;
+                if (!eohFound) {
+                    String string = new String(buffer, 0, count);
+                    int indexOfEOH = string.indexOf("\r\n\r\n");
+                    if (indexOfEOH != -1) {
+                        count = count - indexOfEOH - 4;
+                        offset = indexOfEOH + 4;
+                        eohFound = true;
+                    } else {
+                        count = 0;
+                    }
+                }
+                dos.write(buffer, offset, count);
+                dos.flush();
+            }
+            in.close();
+            dos.close();
+            System.out.println("image transfer done");
+
+            socket.close();
+
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+
+
     }
 }
 
