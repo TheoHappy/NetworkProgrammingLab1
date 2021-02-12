@@ -22,7 +22,7 @@ public class Client {
         List<String> listOfImg = getPics(serverResponse);
         listOfImg.remove(listOfImg.size() - 1);
         listOfImg.remove(listOfImg.size() - 1);
-        System.out.println("List of images from site [me.utm.md] :" +listOfImg);
+        System.out.println("List of images from site [me.utm.md] :" + listOfImg);
 
         Semaphore semaphore = new Semaphore(2);
         ExecutorService exec = Executors.newFixedThreadPool(4);
@@ -32,15 +32,14 @@ public class Client {
                 semaphore.acquire();
                 exec.execute(() -> {
                     try {
-                        getImg(getRealNameOfPicture(element,"http://mib.utm.md"));
+                        getImg(getRealNameOfPicture(element, "http://mib.utm.md"));
                         semaphore.release();
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
                     System.out.println(Thread.currentThread().getName());
                 });
-                if (element.equals(listOfImg.get(listOfImg.size()-1)))
-                {
+                if (element.equals(listOfImg.get(listOfImg.size() - 1))) {
                     status = false;
                     break;
                 }
@@ -112,7 +111,20 @@ public class Client {
         InputStream response = socket.getInputStream();
         OutputStream request = socket.getOutputStream();
 
-        byte[] data = ("GET " + getArgument + " HTTP/1.1\n" + "Host: " + hostName + "\n\n").getBytes();
+//        byte[] data = ("GET " + getArgument + " HTTP/1.1\n" + "Host: " + hostName + "\n\n").getBytes();
+
+        StringBuilder dataRequest = new StringBuilder();
+        dataRequest
+                .append("GET " + getArgument + " HTTP/1.1\r\n")
+                .append("Host: " + hostName + "\r\n")
+                .append("Content-Type: text/html;charset=utf-8 \r\n")
+                .append("Accept-Language: ro \r\n")
+                .append("Content-Language: en, ase, ru \r\n")
+                .append("User-Agent: Mozilla/5.0 (X11; Linux i686; rv:2.0.1) Gecko/20100101 Firefox/4.0.1 \r\n")
+                .append("Vary: Accept-Encoding \r\n")
+                .append("\r\n");
+
+        byte[] data = (dataRequest.toString()).getBytes();
         request.write(data);
 
         while ((c = response.read()) != -1) {
@@ -137,7 +149,18 @@ public class Client {
                             new OutputStreamWriter(
                                     socket.getOutputStream())));
 
-            out.println("GET " + getArgument + " HTTP/1.1\r\nHost: " + hostName + "\r\n\r\n");
+            StringBuilder dataRequest = new StringBuilder();
+            dataRequest
+                    .append("GET " + getArgument + " HTTP/1.1\r\n")
+                    .append("Host: " + hostName + "\r\n")
+                    .append("Content-Type: text/html;charset=utf-8 \r\n")
+                    .append("Accept-Language: ro \r\n")
+                    .append("Content-Language: en, ase, ru \r\n")
+                    .append("User-Agent: Mozilla/5.0 (X11; Linux i686; rv:2.0.1) Gecko/20100101 Firefox/4.0.1 \r\n")
+                    .append("Vary: Accept-Encoding \r\n")
+                    .append("\r\n");
+
+            out.println(dataRequest);
             out.flush();
 
             if (out.checkError())
@@ -178,7 +201,14 @@ public class Client {
         Socket socket = new Socket(HOST_NAME1, PORT1);
         DataOutputStream bw = new DataOutputStream(socket.getOutputStream());
         bw.writeBytes("GET /" + imgName + " HTTP/1.1\r\n");
-        bw.writeBytes("Host: " + HOST_NAME1 + ":80\r\n\r\n");
+        bw.writeBytes("Host: " + HOST_NAME1 + ":80\r\n");
+        bw.writeBytes("Content-Type: text/html;charset=utf-8 \r\n");
+        bw.writeBytes("Accept-Language: ro \r\n");
+        bw.writeBytes("Content-Language: en, ase, ru \r\n");
+        bw.writeBytes("User-Agent: Mozilla/5.0 (X11; Linux i686; rv:2.0.1) Gecko/20100101 Firefox/4.0.1 \r\n");
+        bw.writeBytes("Vary: Accept-Encoding \r\n");
+        bw.writeBytes("\r\n");
+
         bw.flush();
 
         String[] tokens = imgName.split("/");
@@ -212,7 +242,7 @@ public class Client {
         socket.close();
     }
 
-    private static void getImgS(String imgName){
+    private static void getImgS(String imgName) {
         try {
             SSLSocketFactory factory =
                     (SSLSocketFactory) SSLSocketFactory.getDefault();
@@ -224,7 +254,8 @@ public class Client {
                     new BufferedWriter(
                             new OutputStreamWriter(
                                     socket.getOutputStream())));
-            out.println("GET " + imgName + " HTTP/1.1\r\nHost: "+HOST_NAME2+" \r\n\r\n");
+
+            out.println("GET " + imgName + " HTTP/1.1\r\nHost: " + HOST_NAME2 + " \r\n\r\n");
             out.flush();
 
             if (out.checkError())
