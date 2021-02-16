@@ -3,6 +3,7 @@ import java.io.*;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
@@ -17,7 +18,18 @@ public class Client {
     final static int PORT2 = 443;
 
     public static void main(String[] args) throws Exception {
-//        For me.utm.md
+
+        System.out.println("Insert 1 for me.utm.md and 2 for utm.md:");
+        Scanner scanner = new Scanner(System.in);
+        int choice = scanner.nextInt();
+        if (choice == 1)
+            requestToMeUtmMD();
+        else if (choice == 2)
+            requestToUtmMD();
+
+    }
+
+    public static void  requestToMeUtmMD() throws InterruptedException, IOException {
         String serverResponse = getResponseFromServer(HOST_NAME1, PORT1, "/");
         List<String> listOfImg = getPics(serverResponse);
         listOfImg.remove(listOfImg.size() - 1);
@@ -47,41 +59,39 @@ public class Client {
         }
         exec.shutdown();
         exec.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
-
-//      For utm.md
-
-//        String serverResponseSecurised = getResponseFromSecurisedServer(HOST_NAME2, PORT2, "/");
-//        List<String> listOfImgSecurised = getPics(serverResponseSecurised);
-//        listOfImgSecurised.remove(0);
-//        listOfImgSecurised.remove(0);
-//        listOfImgSecurised.remove(0);
-//        System.out.println("List of images from site [utm.md] :" + listOfImgSecurised);
-//
-//        Semaphore semaphore = new Semaphore(2);
-//        ExecutorService exec = Executors.newFixedThreadPool(4);
-//        boolean status = true;
-//        while (status) {
-//            for (String element : listOfImgSecurised) {
-//                semaphore.acquire();
-//                exec.execute(() -> {
-//                    try {
-//                        getImgS(getRealNameOfPicture(element, "https://utm.md"));
-//                        semaphore.release();
-//                    } catch (Exception e) {
-//                        e.printStackTrace();
-//                    }
-//                    System.out.println(Thread.currentThread().getName());
-//                });
-//                if (element.equals(listOfImgSecurised.get(listOfImgSecurised.size() - 1))) {
-//                    status = false;
-//                    break;
-//                }
-//            }
-//        }
-//        exec.shutdown();
-//        exec.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
     }
+    public static void requestToUtmMD() throws InterruptedException {
+        String serverResponseSecurised = getResponseFromSecurisedServer(HOST_NAME2, PORT2, "/");
+        List<String> listOfImgSecurised = getPics(serverResponseSecurised);
+        listOfImgSecurised.remove(0);
+        listOfImgSecurised.remove(0);
+        listOfImgSecurised.remove(0);
+        System.out.println("List of images from site [utm.md] :" + listOfImgSecurised);
 
+        Semaphore semaphore = new Semaphore(2);
+        ExecutorService exec = Executors.newFixedThreadPool(4);
+        boolean status = true;
+        while (status) {
+            for (String element : listOfImgSecurised) {
+                semaphore.acquire();
+                exec.execute(() -> {
+                    try {
+                        getImgS(getRealNameOfPicture(element, "https://utm.md"));
+                        semaphore.release();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    System.out.println(Thread.currentThread().getName());
+                });
+                if (element.equals(listOfImgSecurised.get(listOfImgSecurised.size() - 1))) {
+                    status = false;
+                    break;
+                }
+            }
+        }
+        exec.shutdown();
+        exec.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
+    }
 
     public static List<String> getPics(String text) {
         String img;
